@@ -5,21 +5,76 @@ node_js:
 
 services:
   - mysql
-
-# For xunit-file module to put results in shippable folder
+  
+  
+  
 env:
-  - XUNIT_FILE=shippable/testresults/result.xml
+  global:
+    - FOO=FUBU
+    - FO1=BUBU
+    - BOO=GUBU
 
-# Make folders for the reports, and create the SQL db
-before_script:
-  - mkdir -p shippable/testresults
-  - mkdir -p shippable/codecoverage
-  - mysql -e 'create database if not exists test;'
+ 
+build:
+ # pre_ci:
+  #  - docker build --rm -t=quay.io/vidyar/beta-sample-img-app .
 
-script:
-  - npm test
+  pre_ci_boot:
+    image_name: drydock/u14nodall
+    image_tag: prod
+    pull: true
+    options: '--privileged=true --net=bridge -e FOO=true -e BOO=false'
 
-# Generate coverage report with istanbul
-after_script:
-  - ./node_modules/.bin/istanbul cover ./node_modules/.bin/_mocha test.js -- -u tdd
-  - ./node_modules/.bin/istanbul report cobertura --dir  shippable/codecoverage/
+  ci:
+    - ps -eax
+    - ls -al
+    - echo $FOO
+    - mysql -e 'create database if not exists test;'
+    - npm test
+
+  #post_ci:
+   # - docker push quay.io/vidyar/beta-sample-img-app
+
+  smoke_test:
+    - sudo ls /
+
+deploy:
+  pre_build:
+    - ls
+    - ls -al
+
+integrations:
+  notification:
+    - integrationName: "vidya-slack"
+      type: slack
+      recipients:
+        - "#newbuildsystem"
+      branches:
+        only:
+          - master
+      on_start: always
+      on_success: always
+      on_failure: always
+      on_pull_request: always
+      
+      type: email
+      recipients:
+        - vidya@shippable.com
+        - buildsampletest@gmail.com
+      branches:
+        only:
+          - master
+      on_start: never
+      on_success: always
+      on_failure: change
+      on_pull_request: always
+    
+
+  hub:
+    - integrationName: "docker-vr"
+      type: docker
+      branches:
+        only:
+          - master
+
+
